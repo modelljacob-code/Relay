@@ -13,9 +13,14 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+!.env.local.example
+
+# Supabase CLI local state
+supabase/.temp/
 
 # Common build / cache
 node_modules/
+.next/
 dist/
 build/
 __pycache__/
@@ -23,3 +28,6 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# TypeScript
+*.tsbuildinfo
