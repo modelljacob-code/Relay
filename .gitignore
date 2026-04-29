@@ -9,11 +9,12 @@ Desktop.ini
 *.swo
 *~
 
-# Env and secrets
+# Env and secrets (never commit real keys — use .env.local.example as a template.)
 .env
 .env.*
 !.env.example
 !.env.local.example
+.env.local
 
 # Supabase CLI local state
 supabase/.temp/

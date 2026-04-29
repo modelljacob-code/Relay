@@ -1,11 +1,43 @@
--- Quick Play: at most three bot seats per room (humans + bots still capped by max_players).
--- (Filename kept for migration order; cap raised from two to three in this revision.)
+-- 1) Kick a random bot (not highest seat) when making room for a human.
+-- 2) quick_play: seed 1–3 bots when a new Quick Play room is created; allow joining
+--    full lobbies by trimming one bot at a time until a seat opens.
+-- 3) Re-apply relay_spawn_bots (max 3 bots) + relay_room_tick lobby cap aligned with 018/021.
+
+-- ── relay_trim_one_bot: random bot ───────────────────────────────────────────
+
+create or replace function public.relay_trim_one_bot(p_room_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+set row_security = off
+as $fn$
+declare
+  victim uuid;
+begin
+  select id into victim
+  from public.room_members
+  where room_id = p_room_id and coalesce(is_bot, false) = true
+  order by random()
+  limit 1;
+
+  if victim is null then return false; end if;
+
+  delete from public.room_members where id = victim;
+  return true;
+end;
+$fn$;
+
+grant execute on function public.relay_trim_one_bot(uuid) to authenticated;
+
+-- ── relay_spawn_bots (max 3 for quick play) ──────────────────────────────────
 
 create or replace function public.relay_spawn_bots(p_room_id uuid, p_count int)
 returns int
 language plpgsql
 security definer
 set search_path = public
+set row_security = off
 as $fn$
 declare
   r public.rooms%rowtype;
@@ -76,7 +108,114 @@ $fn$;
 
 grant execute on function public.relay_spawn_bots(uuid, int) to authenticated;
 
--- ── relay_room_tick: cap quick-play lobby fill to humans + 3 (max three bots) ─
+-- ── quick_play: seed bots on new room + join full QP lobbies via trim ─────────
+
+create or replace function public.quick_play(p_display_name text default '')
+returns text
+language plpgsql
+security definer
+set search_path = public
+set row_security = off
+as $fn$
+declare
+  v_room_id  uuid;
+  v_cnt      int;
+  v_next_seat int;
+  v_new_code text;
+  v_code     text;
+  v_mx       int;
+  v_spawn    int;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+
+  select r.code into v_code
+  from public.room_members rm
+  join public.rooms r on r.id = rm.room_id
+  where rm.user_id = auth.uid()
+    and r.status = 'waiting'
+    and r.is_quick_play = true
+  limit 1;
+  if v_code is not null then return v_code; end if;
+
+  select r.id into v_room_id
+  from public.rooms r
+  where r.status = 'waiting'
+    and r.is_quick_play = true
+    and not exists (
+      select 1 from public.room_members rm2
+      where rm2.room_id = r.id and rm2.user_id = auth.uid()
+    )
+    and (
+      (select count(*)::int from public.room_members rm3 where rm3.room_id = r.id) < r.max_players
+      or (
+        exists (
+          select 1 from public.room_members bm
+          where bm.room_id = r.id and coalesce(bm.is_bot, false) = true
+        )
+      )
+    )
+  order by
+    (select count(*)::int from public.room_members rm4 where rm4.room_id = r.id) desc,
+    r.created_at asc
+  limit 1
+  for update skip locked;
+
+  if v_room_id is not null then
+    select max_players into v_mx from public.rooms where id = v_room_id;
+    select count(*)::int into v_cnt from public.room_members where room_id = v_room_id;
+    while v_cnt >= v_mx loop
+      if not exists (
+        select 1 from public.room_members
+        where room_id = v_room_id and coalesce(is_bot, false) = true
+      ) then
+        v_room_id := null;
+        exit;
+      end if;
+      exit when not public.relay_trim_one_bot(v_room_id);
+      select count(*)::int into v_cnt from public.room_members where room_id = v_room_id;
+    end loop;
+  end if;
+
+  if v_room_id is null then
+    loop
+      v_new_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+      exit when not exists (select 1 from public.rooms where code = v_new_code);
+    end loop;
+    insert into public.rooms (code, host_id, is_quick_play)
+    values (v_new_code, auth.uid(), true)
+    returning id into v_room_id;
+
+    insert into public.room_members (room_id, user_id, seat_order, display_name, is_bot, ready)
+    values (v_room_id, auth.uid(), 0, trim(p_display_name), false, false);
+
+    select max_players into v_mx from public.rooms where id = v_room_id;
+    v_spawn := least(
+      1 + (floor(random() * 3))::int,
+      3,
+      greatest(v_mx - 1, 0)
+    );
+    if v_spawn > 0 then
+      perform public.relay_spawn_bots(v_room_id, v_spawn);
+    end if;
+
+    select code into v_code from public.rooms where id = v_room_id;
+    return v_code;
+  end if;
+
+  select coalesce(max(seat_order), -1) + 1 into v_next_seat
+  from public.room_members where room_id = v_room_id;
+
+  insert into public.room_members (room_id, user_id, seat_order, display_name, is_bot, ready)
+  values (v_room_id, auth.uid(), v_next_seat, trim(p_display_name), false, false);
+
+  select code into v_code from public.rooms where id = v_room_id;
+  return v_code;
+end;
+$fn$;
+
+grant execute on function public.quick_play(text) to authenticated;
+
+-- ── relay_room_tick (021 + max three bots in quick-play lobby) ───────────────
 
 create or replace function public.relay_room_tick(p_room_id uuid)
 returns boolean
@@ -227,6 +366,10 @@ begin
   ) into bot_turn;
 
   if not bot_turn then return false; end if;
+
+  if extract(epoch from (now() - r.turn_started_at)) < 2.5 then
+    return false;
+  end if;
 
   select exists(
     select 1 from public.lines l

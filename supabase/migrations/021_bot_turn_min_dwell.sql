@@ -79,7 +79,7 @@ begin
 
       desired_total := r.quick_play_fill_target;
       if desired_total is not null then
-        desired_total := least(desired_total, h_cnt + 2, r.max_players);
+        desired_total := least(desired_total, h_cnt + 3, r.max_players);
       end if;
 
       urgent := t_cnt < 2
@@ -98,7 +98,7 @@ begin
 
       if stagger_ok
          and t_cnt < r.max_players
-         and b_cnt < 2
+         and b_cnt < 3
          and (
            (urgent and t_cnt < 2)
            or (desired_total is not null and t_cnt < desired_total)
