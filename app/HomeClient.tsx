@@ -176,7 +176,7 @@ export function HomeClient() {
               Relay
             </h1>
             <p className="mx-auto mt-4 max-w-lg text-center text-lg font-medium leading-snug text-relay-text/90 sm:text-xl">
-              Write a line and Pass it on
+              Write a line and Pass it on - Create a Song
             </p>
           </div>
           <form onSubmit={onSaveName} className="w-full max-w-sm space-y-3">
@@ -218,7 +218,7 @@ export function HomeClient() {
             Relay
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-lg font-medium leading-snug text-relay-text/90 sm:text-xl">
-            Write a line and Pass it on
+            Write a line and Pass it on - Create a Song
           </p>
           <p className="mt-8 text-sm text-relay-text/50">
             Hey, <span className="font-medium text-relay-text/90">{name}</span>
