@@ -1,8 +1,8 @@
--- Align stale/skip turn thresholds with TURN_TIMEOUT_SECONDS (15).
+-- Align stale/skip turn thresholds with TURN_TIMEOUT_SECONDS (23).
 -- Reset first-turn clock after 3-2-1 so the full 15s starts when play begins.
 -- Optional LLM bot lines via relay_submit_bot_line (called from app server action).
 
--- ── advance_turn_if_stale: 15s (was 8s) ─────────────────────────────────────
+-- ── advance_turn_if_stale: 23s (was 8s) ─────────────────────────────────────
 
 create or replace function public.advance_turn_if_stale(p_room_id uuid)
 returns boolean
@@ -30,7 +30,7 @@ begin
   if room_row.status <> 'active' then
     return false;
   end if;
-  if room_row.turn_started_at > now() - interval '15 seconds' then
+  if room_row.turn_started_at > now() - interval '23 seconds' then
     return false;
   end if;
 
@@ -39,7 +39,7 @@ begin
 end;
 $$;
 
--- ── skip_turn_with_placeholder: 15s + bot seats (007 behavior) ──────────────
+-- ── skip_turn_with_placeholder: 23s + bot seats (007 behavior) ──────────────
 
 create or replace function public.skip_turn_with_placeholder(p_room_id uuid)
 returns boolean
@@ -77,7 +77,7 @@ begin
   if not found or room_row.status <> 'active' then
     return false;
   end if;
-  if room_row.turn_started_at > now() - interval '15 seconds' then
+  if room_row.turn_started_at > now() - interval '23 seconds' then
     return false;
   end if;
 

@@ -6,6 +6,7 @@ import { totalSongWordCount } from "@/lib/handoff";
 import {
   MAX_CHARS_PER_TURN,
   TARGET_SONG_WORDS,
+  TURN_EXPIRED_PLACEHOLDER,
   TURN_TIMEOUT_SECONDS,
 } from "@/lib/relay-constants";
 import { isRelayBotDebug, relayBotLog } from "@/lib/relay-bot-debug";
@@ -194,6 +195,9 @@ export function RoomView({ code }: { code: string }) {
   const [turnFlash, setTurnFlash] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const lineDraftRef = useRef("");
+  /** Prevents Strict Mode / duplicate effects from firing the same turn-timeout twice */
+  const turnTimeoutFiredRef = useRef<string | null>(null);
 
   /** Always read latest game phase inside interval callbacks (avoids stale `status` closures). */
   const roomStatusRef = useRef(room?.status);
@@ -634,7 +638,7 @@ export function RoomView({ code }: { code: string }) {
     void turnClockTick;
     if (room?.status !== "active" || !room.turn_started_at) return null;
     // Freeze at full time while the 3-2-1 game-start countdown is playing
-    // so the first turn always has the full 15 seconds after GO.
+    // so the first turn always has the full window after GO.
     if (countdown !== null) return TURN_TIMEOUT_SECONDS;
     const deadline =
       new Date(room.turn_started_at).getTime() + TURN_TIMEOUT_SECONDS * 1000;
@@ -643,24 +647,6 @@ export function RoomView({ code }: { code: string }) {
       Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
     );
   }, [room?.status, room?.turn_started_at, turnClockTick, countdown]);
-
-  useEffect(() => {
-    // Don't skip during the 3-2-1 — the first player should get full time.
-    if (countdown !== null) return;
-    if (secondsLeftOnTurn !== 0 || !room?.id || room.status !== "active") return;
-    const roomId = room.id;
-    const skip = async () => {
-      const { data, error: e } = await supabase.rpc(
-        "skip_turn_with_placeholder",
-        { p_room_id: roomId }
-      );
-      if (!e && data === true) {
-        sounds.skip();
-        await loadByRoomId(roomId);
-      }
-    };
-    void skip();
-  }, [secondsLeftOnTurn, room?.id, room?.status, supabase, loadByRoomId]);
 
   // ── Auto-focus textarea when it's your turn ───────────────────────────────
 
@@ -744,6 +730,14 @@ export function RoomView({ code }: { code: string }) {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+  useEffect(() => {
+    lineDraftRef.current = lineDraft;
+  }, [lineDraft]);
+
+  useEffect(() => {
+    turnTimeoutFiredRef.current = null;
+  }, [room?.turn_started_at, room?.current_turn_seat, room?.status]);
+
   async function onJoin() {
     setJoinBusy(true);
     setError(null);
@@ -784,43 +778,91 @@ export function RoomView({ code }: { code: string }) {
     await loadByRoomId(room.id);
   }
 
-  async function onSubmitLine(e: React.FormEvent) {
+  const commitTurnLine = useCallback(
+    async (fromDeadline: boolean) => {
+      if (!room || room.status !== "active" || !userId) return;
+      const trimmed = lineDraftRef.current.trim();
+
+      let toSend: string;
+      if (trimmed.length > 0) {
+        toSend = trimmed;
+      } else if (fromDeadline) {
+        toSend = TURN_EXPIRED_PLACEHOLDER;
+      } else {
+        setError("Write a line first.");
+        return;
+      }
+
+      if (toSend.length > MAX_CHARS_PER_TURN) {
+        setError(`Keep it under ${MAX_CHARS_PER_TURN} characters.`);
+        return;
+      }
+
+      const optimisticLine: LineRow = {
+        id: `opt-${Date.now()}`,
+        author_id: userId,
+        content: toSend,
+        handoff_key: "",
+        position: (lines[lines.length - 1]?.position ?? 0) + 1,
+        created_at: new Date().toISOString(),
+      };
+      setLines((prev) => [...prev, optimisticLine]);
+      setLineDraft("");
+      sounds.submit();
+      setSubmitBusy(true);
+      setError(null);
+      const res = await submitLine(room.id, trimmed, fromDeadline);
+      setSubmitBusy(false);
+      if ("error" in res && res.error) {
+        setLines((prev) => prev.filter((l) => l.id !== optimisticLine.id));
+        setError(res.error);
+        return;
+      }
+      await loadByRoomId(room.id);
+    },
+    [room, userId, lines, loadByRoomId, sounds]
+  );
+
+  function onSubmitLine(e: React.FormEvent) {
     e.preventDefault();
-    if (!room || room.status !== "active" || !userId) return;
-    const trimmed = lineDraft.trim();
-    if (!trimmed) {
-      setError("Write a line first.");
-      return;
-    }
-    if (trimmed.length > MAX_CHARS_PER_TURN) {
-      setError(`Keep it under ${MAX_CHARS_PER_TURN} characters.`);
-      return;
-    }
-
-    // Optimistic update for instant feel
-    const optimisticLine: LineRow = {
-      id: `opt-${Date.now()}`,
-      author_id: userId,
-      content: trimmed,
-      handoff_key: "",
-      position: (lines[lines.length - 1]?.position ?? 0) + 1,
-      created_at: new Date().toISOString(),
-    };
-    setLines((prev) => [...prev, optimisticLine]);
-    setLineDraft("");
-
-    sounds.submit();
-    setSubmitBusy(true);
-    setError(null);
-    const res = await submitLine(room.id, trimmed);
-    setSubmitBusy(false);
-    if ("error" in res && res.error) {
-      setLines((prev) => prev.filter((l) => l.id !== optimisticLine.id));
-      setError(res.error);
-      return;
-    }
-    await loadByRoomId(room.id);
+    void commitTurnLine(false);
   }
+
+  useEffect(() => {
+    if (countdown !== null) return;
+    if (secondsLeftOnTurn !== 0 || !room?.id || room.status !== "active") return;
+    const k = `${room.turn_started_at}|${room.current_turn_seat}`;
+    if (turnTimeoutFiredRef.current === k) return;
+    turnTimeoutFiredRef.current = k;
+
+    const roomId = room.id;
+    void (async () => {
+      if (isMyTurn) {
+        await commitTurnLine(true);
+        return;
+      }
+      const { data, error: e } = await supabase.rpc(
+        "skip_turn_with_placeholder",
+        { p_room_id: roomId }
+      );
+      if (!e && data === true) {
+        sounds.skip();
+        await loadByRoomId(roomId);
+      }
+    })();
+  }, [
+    secondsLeftOnTurn,
+    room?.id,
+    room?.status,
+    room?.turn_started_at,
+    room?.current_turn_seat,
+    countdown,
+    supabase,
+    loadByRoomId,
+    isMyTurn,
+    commitTurnLine,
+    sounds,
+  ]);
 
   async function onRunItBack() {
     if (!room) return;

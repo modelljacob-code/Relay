@@ -1,7 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { MAX_CHARS_PER_TURN } from "@/lib/relay-constants";
+import {
+  MAX_CHARS_PER_TURN,
+  TURN_EXPIRED_PLACEHOLDER,
+} from "@/lib/relay-constants";
 import { generateRoomCode } from "@/lib/room-code";
 import { revalidatePath } from "next/cache";
 
@@ -79,9 +82,11 @@ export async function startGame(roomId: string): Promise<{ ok?: true; error?: st
   return { ok: true };
 }
 
+/** When true, empty input is saved as `TURN_EXPIRED_PLACEHOLDER` (turn deadline). */
 export async function submitLine(
   roomId: string,
-  content: string
+  content: string,
+  deadlineEmptyAsPlaceholder = false
 ): Promise<{ ok?: true; error?: string }> {
   const supabase = createClient();
   const {
@@ -89,7 +94,10 @@ export async function submitLine(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
-  const trimmed = content.trim();
+  const trimmedRaw = content.trim();
+  const trimmed = deadlineEmptyAsPlaceholder
+    ? trimmedRaw || TURN_EXPIRED_PLACEHOLDER
+    : trimmedRaw;
   if (!trimmed) return { error: "Line cannot be empty." };
   if (trimmed.length > MAX_CHARS_PER_TURN) {
     return { error: `Line must be ${MAX_CHARS_PER_TURN} characters or less.` };

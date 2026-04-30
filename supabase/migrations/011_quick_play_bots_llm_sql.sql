@@ -213,7 +213,7 @@ begin
   if not found or room_row.status <> 'active' then
     return false;
   end if;
-  if room_row.turn_started_at > now() - interval '15 seconds' then
+  if room_row.turn_started_at > now() - interval '23 seconds' then
     return false;
   end if;
 

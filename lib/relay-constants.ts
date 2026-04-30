@@ -5,7 +5,13 @@ export const MAX_CHARS_PER_TURN = 50;
 export const TARGET_SONG_WORDS = 80;
 
 /** If the current player does not submit a line within this many seconds, the turn passes. */
-export const TURN_TIMEOUT_SECONDS = 15;
+export const TURN_TIMEOUT_SECONDS = 23;
+
+/**
+ * Stored when time runs out and the player typed nothing. Must survive `relay_normalize_raw`
+ * (punctuation-only lines are rejected); bracket style matches bot skip fillers like `[silence]`.
+ */
+export const TURN_EXPIRED_PLACEHOLDER = "[timeout]";
 
 /**
  * Bot seats wait at least this long after `turn_started_at` before SQL or LLM can insert

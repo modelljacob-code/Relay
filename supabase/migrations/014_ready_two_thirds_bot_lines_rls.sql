@@ -305,7 +305,15 @@ begin
   if not found or room_row.status <> 'active' then
     return false;
   end if;
-  if room_row.turn_started_at > now() - interval '15 seconds' then
+  if room_row.turn_started_at > now() - interval '23 seconds' then
+    return false;
+  end if;
+
+  if exists (
+    select 1 from public.lines l
+    where l.room_id = p_room_id
+      and l.created_at >= room_row.turn_started_at
+  ) then
     return false;
   end if;
 
