@@ -44,7 +44,7 @@ export function BackgroundMusic() {
         <button
           type="button"
           onClick={handleUnlock}
-          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full border border-relay-text/10 bg-relay-card px-4 py-2 text-sm text-relay-text/60 shadow-lg transition hover:text-relay-text/90 animate-pulse"
+          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full border border-relay-text/15 bg-relay-card/90 px-4 py-2 text-sm text-relay-text/60 shadow-lg shadow-black/30 backdrop-blur-md transition hover:text-relay-text/90 animate-pulse"
         >
           <span className="text-base">🎵</span>
           Tap to enable music

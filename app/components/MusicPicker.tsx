@@ -32,7 +32,7 @@ export function MusicPicker({
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-relay-text/10 bg-relay-card shadow-xl"
+      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-relay-text/12 bg-relay-card/95 shadow-xl shadow-black/40 backdrop-blur-md"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-relay-text/8 px-4 py-3">

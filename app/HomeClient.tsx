@@ -36,6 +36,10 @@ function supabaseAuthBootstrapMessage(raw: string): string {
   ].join("\n");
 }
 
+function HomeShell({ children }: { children: React.ReactNode }) {
+  return <div className="relative z-0 min-h-screen">{children}</div>;
+}
+
 export function HomeClient() {
   const router = useRouter();
   const music = useMusicControl();
@@ -154,158 +158,174 @@ export function HomeClient() {
   // Loading state (localStorage not yet read)
   if (name === null) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-6">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-relay-live border-t-transparent" />
-      </main>
+      <HomeShell>
+        <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-6 motion-safe:animate-home-fade-in">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-relay-text/30 border-t-relay-text" />
+        </main>
+      </HomeShell>
     );
   }
 
   // Name prompt (first visit)
   if (!name) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center px-6 pb-16">
-        <div className="mb-10 text-center">
-          <h1 className="text-5xl font-black tracking-tight text-relay-text">Relay</h1>
-          <p className="mt-3 text-relay-text/55">
-            Co-write songs with friends, one line at a time.
-          </p>
-        </div>
-        <form onSubmit={onSaveName} className="w-full space-y-3">
-          <label className="block text-sm font-medium text-relay-text/60">
-            What&apos;s your name?
-          </label>
-          <input
-            ref={nameInputRef}
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            placeholder="Your name"
-            maxLength={24}
-            className="w-full rounded-xl border border-relay-text/15 bg-relay-card px-4 py-3.5 text-center text-lg font-medium text-relay-text outline-none ring-relay-live/40 placeholder:text-relay-text/25 focus:ring-2"
-          />
-          <button
-            type="submit"
-            disabled={!nameInput.trim()}
-            className="w-full rounded-xl bg-relay-live py-3.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
-          >
-            Let&apos;s play →
-          </button>
-        </form>
-        {err ? (
-          <p className="mt-5 max-h-64 overflow-y-auto whitespace-pre-wrap text-center text-xs leading-relaxed text-relay-urgency">
-            {err}
-          </p>
-        ) : null}
-      </main>
+      <HomeShell>
+        <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 pb-16 motion-safe:animate-home-fade-in">
+          <div className="mb-12 w-full text-center">
+            <h1 className="text-5xl font-black tracking-tight text-relay-text md:text-6xl">
+              Relay
+            </h1>
+            <p className="mx-auto mt-4 max-w-lg text-center text-lg font-medium leading-snug text-relay-text/90 sm:text-xl">
+              Write a line and Pass it on
+            </p>
+          </div>
+          <form onSubmit={onSaveName} className="w-full max-w-sm space-y-3">
+            <label className="block text-center text-sm font-medium text-relay-text/50">
+              What&apos;s your name?
+            </label>
+            <input
+              ref={nameInputRef}
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              placeholder="Your name"
+              maxLength={24}
+              className="w-full rounded-xl border border-relay-text/15 bg-relay-bg/80 px-4 py-3.5 text-center text-lg font-medium text-relay-text outline-none ring-relay-live/35 placeholder:text-relay-text/30 backdrop-blur-sm focus:ring-2"
+            />
+            <button
+              type="submit"
+              disabled={!nameInput.trim()}
+              className="w-full rounded-xl bg-relay-live py-3.5 font-semibold text-white shadow-lg shadow-black/30 transition hover:scale-[1.02] hover:brightness-110 active:scale-[0.99] disabled:opacity-40 disabled:hover:scale-100 disabled:hover:brightness-100"
+            >
+              Let&apos;s play →
+            </button>
+          </form>
+          {err ? (
+            <p className="mt-5 max-h-64 overflow-y-auto whitespace-pre-wrap text-center text-xs leading-relaxed text-red-300/90">
+              {err}
+            </p>
+          ) : null}
+        </main>
+      </HomeShell>
     );
   }
 
   // Main lobby
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6 pb-16">
-      <div className="mb-10">
-        <h1 className="text-5xl font-black tracking-tight text-relay-text">Relay</h1>
-        <p className="mt-2 text-relay-text/55">
-          Hey, <span className="font-medium text-relay-text">{name}</span> 👋
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {/* ── Quick Play ── */}
-        <button
-          type="button"
-          disabled={busy || !authReady}
-          onClick={() => void onQuickPlay()}
-          className="relative rounded-xl bg-relay-live px-4 py-4 text-center font-bold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-        >
-          {busyMode === "quick" ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Finding a game…
-            </span>
-          ) : !authReady ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Connecting…
-            </span>
-          ) : (
-            "Quick Play"
-          )}
-        </button>
-
-        <div className="my-3 flex items-center gap-3">
-          <div className="h-px flex-1 bg-relay-text/10" />
-          <span className="text-xs text-relay-text/30">or</span>
-          <div className="h-px flex-1 bg-relay-text/10" />
-        </div>
-
-        {/* ── Create private room ── */}
-        <button
-          type="button"
-          disabled={busy || !authReady}
-          onClick={() => void onCreate()}
-          className="rounded-xl border border-relay-text/15 bg-relay-card px-4 py-3.5 text-center font-semibold text-relay-text transition hover:bg-relay-active disabled:opacity-50"
-        >
-          {busyMode === "private"
-            ? "Creating room…"
-            : !authReady
-              ? "Connecting…"
-              : "Create private room"}
-        </button>
-        <p className="text-center text-xs text-relay-text/40">
-          You get a room code and invite link to share with friends.
-        </p>
-
-        {/* ── Join by code ── */}
-        <div className="mt-2 rounded-xl bg-relay-card p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-relay-text">Join a room</h2>
-          <p className="mt-0.5 text-xs text-relay-text/50">
-            Paste a code or full invite link.
+    <HomeShell>
+      <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 pb-16 pt-8 motion-safe:animate-home-fade-in">
+        <header className="mb-14 text-center">
+          <h1 className="text-5xl font-black tracking-tight text-relay-text md:text-6xl">
+            Relay
+          </h1>
+          <p className="mx-auto mt-4 max-w-lg text-lg font-medium leading-snug text-relay-text/90 sm:text-xl">
+            Write a line and Pass it on
           </p>
-          <form onSubmit={onJoin} className="mt-4 flex flex-col gap-3">
-            <input
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              placeholder="AYK8PK or invite URL"
-              className="w-full rounded-lg border border-relay-text/10 bg-relay-bg px-3 py-2.5 text-center font-mono text-sm uppercase tracking-widest text-relay-text outline-none ring-relay-live/30 placeholder:normal-case placeholder:tracking-normal placeholder:text-relay-text/30 focus:ring-2 sm:text-lg"
-            />
+          <p className="mt-8 text-sm text-relay-text/50">
+            Hey, <span className="font-medium text-relay-text/90">{name}</span>
+          </p>
+        </header>
+
+        <div className="flex flex-col gap-10">
+          {/* ── Quick Play (primary) ── */}
+          <div className="flex flex-col items-center gap-2">
             <button
-              type="submit"
-              className="w-full rounded-lg bg-relay-active py-2.5 font-medium text-relay-text transition hover:opacity-90"
+              type="button"
+              disabled={busy || !authReady}
+              onClick={() => void onQuickPlay()}
+              className="w-full max-w-sm rounded-xl bg-relay-live px-4 py-4 text-center text-lg font-bold text-white shadow-lg shadow-black/35 transition hover:scale-[1.02] hover:brightness-110 active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:brightness-100"
             >
-              Join game →
+              {busyMode === "quick" ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Finding a game…
+                </span>
+              ) : !authReady ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Connecting…
+                </span>
+              ) : (
+                "Quick Play"
+              )}
             </button>
-          </form>
+            <p className="text-center text-sm text-relay-text/55">Get matched in seconds</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="h-px flex-1 bg-relay-text/35" />
+            <span className="shrink-0 text-sm font-semibold uppercase tracking-[0.18em] text-relay-text/90">
+              or
+            </span>
+            <div className="h-px flex-1 bg-relay-text/35" />
+          </div>
+
+          {/* ── Secondary: private room ── */}
+          <div className="flex flex-col items-center gap-2">
+            <button
+              type="button"
+              disabled={busy || !authReady}
+              onClick={() => void onCreate()}
+              className="w-full max-w-sm rounded-xl border border-relay-text/20 bg-relay-card/50 px-4 py-3 text-center text-sm font-semibold text-relay-text/90 backdrop-blur-sm transition hover:scale-[1.01] hover:border-relay-text/30 hover:bg-relay-card active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
+            >
+              {busyMode === "private"
+                ? "Creating room…"
+                : !authReady
+                  ? "Connecting…"
+                  : "Create Private Room"}
+            </button>
+          </div>
+
+          {/* ── Join (tertiary) ── */}
+          <div className="rounded-xl border border-relay-text/12 bg-relay-card/70 p-4 shadow-sm shadow-black/25 backdrop-blur-sm">
+            <h2 className="text-center text-xs font-semibold uppercase tracking-wider text-relay-text/45">
+              Join a room
+            </h2>
+            <form onSubmit={onJoin} className="mt-3 flex flex-col gap-2.5">
+              <input
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                placeholder="Code or invite link"
+                className="w-full rounded-lg border border-relay-text/12 bg-relay-bg/60 px-3 py-2 text-center font-mono text-sm uppercase tracking-widest text-relay-text outline-none ring-relay-live/25 placeholder:normal-case placeholder:tracking-normal placeholder:text-relay-text/25 focus:ring-1"
+              />
+              <button
+                type="submit"
+                className="w-full rounded-lg border border-relay-text/15 bg-transparent py-2 text-sm font-medium text-relay-text/75 transition hover:scale-[1.01] hover:border-relay-text/25 hover:bg-relay-card/50 hover:text-relay-text active:scale-[0.99]"
+              >
+                Join Game
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
 
-      {err ? (
-        <p className="mt-5 max-h-64 overflow-y-auto whitespace-pre-wrap text-center text-xs leading-relaxed text-relay-urgency">
-          {err}
-        </p>
-      ) : null}
+        {err ? (
+          <p className="mt-8 max-h-64 overflow-y-auto whitespace-pre-wrap text-center text-xs leading-relaxed text-red-300/90">
+            {err}
+          </p>
+        ) : null}
 
-      <div className="mt-12 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => {
-            localStorage.removeItem(NAME_KEY);
-            setName("");
-            setNameInput("");
-          }}
-          className="text-xs text-relay-text/30 underline"
-        >
-          Not {name}? Change name
-        </button>
-        <button
-          type="button"
-          onClick={music.toggleMute}
-          className="flex items-center gap-1 text-xs text-relay-text/30 transition hover:text-relay-text/60"
-          title={music.muted ? "Unmute music" : "Mute music"}
-        >
-          {music.muted ? "🔇" : "🎵"}
-          <span>{music.muted ? "Music off" : "Music on"}</span>
-        </button>
-      </div>
-    </main>
+        <div className="mt-14 flex items-center justify-between gap-4 text-sm font-medium text-relay-text/95">
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem(NAME_KEY);
+              setName("");
+              setNameInput("");
+            }}
+            className="text-left underline decoration-relay-text/55 underline-offset-[3px] transition hover:text-relay-text hover:decoration-relay-text"
+          >
+            Not {name}? Change name
+          </button>
+          <button
+            type="button"
+            onClick={music.toggleMute}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg px-1 py-0.5 transition hover:bg-relay-card/60 hover:text-relay-text"
+            title={music.muted ? "Unmute music" : "Mute music"}
+          >
+            {music.muted ? "🔇" : "🎵"}
+            <span>{music.muted ? "Music off" : "Music on"}</span>
+          </button>
+        </div>
+      </main>
+    </HomeShell>
   );
 }

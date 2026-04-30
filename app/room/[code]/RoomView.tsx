@@ -976,7 +976,7 @@ export function RoomView({ code }: { code: string }) {
               onClick={() => { sounds.click(); void onJoin(); }}
               className="mt-4 w-full rounded-xl bg-relay-live py-3 font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
-              {joinBusy ? "Joining…" : "Join game →"}
+              {joinBusy ? "Joining…" : "Join Game →"}
             </button>
             {canWebShare() && (
               <button
@@ -1033,10 +1033,10 @@ export function RoomView({ code }: { code: string }) {
         : `${turnLabel ?? "their"} turn`;
 
     return (
-      <div className="flex min-h-screen flex-col bg-relay-bg">
+      <div className="flex min-h-screen flex-col">
         {/* 3-2-1 countdown overlay */}
         {countdown !== null && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-relay-bg">
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#2d4664]/92 backdrop-blur-sm">
             <div
               className={`font-black leading-none tabular-nums text-relay-live transition-all duration-150 ${
                 countdown === 0 ? "text-[7rem] scale-110" : "text-[10rem]"
@@ -1316,7 +1316,7 @@ export function RoomView({ code }: { code: string }) {
     <main className="mx-auto min-h-screen max-w-lg px-6 py-10">
       {/* 3-2-1 countdown overlay (visible to all players when game starts) */}
       {countdown !== null && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-relay-bg">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#2d4664]/92 backdrop-blur-sm">
           <div
             className={`font-black leading-none tabular-nums text-relay-live transition-all duration-150 ${
               countdown === 0 ? "text-[7rem] scale-110" : "text-[10rem]"
@@ -1362,7 +1362,7 @@ export function RoomView({ code }: { code: string }) {
       </div>
 
       {/* Room header */}
-      <header className="mt-6 rounded-2xl bg-relay-card p-5 shadow-sm">
+      <header className="mt-6 rounded-2xl border border-relay-text/8 bg-relay-card p-5 shadow-sm shadow-black/25">
         {room.status === "waiting" ? (
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-relay-text/45">
@@ -1470,7 +1470,7 @@ export function RoomView({ code }: { code: string }) {
       )}
 
       {/* Players list */}
-      <section className="mt-6 rounded-2xl bg-relay-card p-5 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-relay-text/8 bg-relay-card p-5 shadow-sm shadow-black/25">
         <h2 className="text-sm font-semibold text-relay-text">Players</h2>
         <ul className="mt-3 space-y-2">
           {members.map((m) => {
@@ -1550,7 +1550,7 @@ export function RoomView({ code }: { code: string }) {
 
       {/* Song (completed) */}
       {room.status === "completed" && (
-        <section className="mt-6 rounded-2xl bg-relay-card p-5 shadow-sm">
+        <section className="mt-6 rounded-2xl border border-relay-text/8 bg-relay-card p-5 shadow-sm shadow-black/25">
           <div className="mb-4 rounded-xl border border-relay-live/30 bg-relay-live/10 px-4 py-3 text-center">
             <p className="text-base font-bold text-relay-text">
               Song finished! 🎵

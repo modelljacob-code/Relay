@@ -9,14 +9,24 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        /* Lighter steel-blue UI — aligns with RelayBackground gradient stops */
         relay: {
-          bg: "#F7F5F2",
-          card: "#FFFFFF",
-          text: "#1C1C1C",
+          bg: "#2d4664",
+          card: "#3a5678",
+          text: "#f8fafc",
           active: "#F4C95D",
           live: "#3CB371",
-          urgency: "#E57373",
+          urgency: "#f07178",
         },
+      },
+      keyframes: {
+        homeFadeIn: {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "home-fade-in": "homeFadeIn 0.55s ease-out forwards",
       },
     },
   },

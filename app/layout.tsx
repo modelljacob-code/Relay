@@ -1,4 +1,5 @@
 import { BackgroundMusic } from "@/app/components/BackgroundMusic";
+import { RelayBackground } from "@/app/RelayBackground";
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
@@ -17,7 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${dmSans.className} min-h-screen`}>
+      <body
+        className={`${dmSans.className} min-h-screen bg-[#4f719f] text-relay-text antialiased`}
+      >
+        <RelayBackground />
         <BackgroundMusic />
         {children}
       </body>
