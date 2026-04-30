@@ -10,7 +10,7 @@ import {
 } from "@/lib/relay-constants";
 import { isRelayBotDebug, relayBotLog } from "@/lib/relay-bot-debug";
 import { repairStuckTurnIfSameSeat } from "@/lib/repair-stuck-turn";
-import { canWebShare, getRoomInviteUrl, shareRoomInvite } from "@/lib/invite";
+import { getRoomInviteUrl } from "@/lib/invite";
 import { createClient } from "@/lib/supabase/client";
 import { MusicPicker } from "@/app/components/MusicPicker";
 import { useMusicControl } from "@/app/components/BackgroundMusic";
@@ -179,7 +179,6 @@ export function RoomView({ code }: { code: string }) {
   const [lineDraft, setLineDraft] = useState("");
   const [submitBusy, setSubmitBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
   const [songCopied, setSongCopied] = useState(false);
   const [newGameBusy, setNewGameBusy] = useState(false);
   const [turnClockTick, setTurnClockTick] = useState(0);
@@ -876,31 +875,6 @@ export function RoomView({ code }: { code: string }) {
     }
   }
 
-  async function copyRoomCodeOnly() {
-    try {
-      await navigator.clipboard.writeText(room?.code ?? code);
-      setCodeCopied(true);
-      setTimeout(() => setCodeCopied(false), 2000);
-    } catch {
-      setError("Could not copy room code.");
-    }
-  }
-
-  async function shareInviteLink() {
-    sounds.click();
-    const url = inviteUrl;
-    try {
-      const result = await shareRoomInvite({ code: room?.code ?? code, url });
-      if (result === "unsupported") {
-        await copyInvite();
-        return;
-      }
-      if (result === "aborted") return;
-    } catch {
-      setError("Could not open share sheet. Try copy link instead.");
-    }
-  }
-
   // ── Loading / error / join screens ─────────────────────────────────────────
 
   if (!authReady || loading) {
@@ -929,19 +903,34 @@ export function RoomView({ code }: { code: string }) {
           </button>
         </div>
         <h1 className="mt-6 text-2xl font-semibold text-relay-text">
-          {preview.is_quick_play ? "Quick Play room" : "Private room"}
+          {preview.is_quick_play
+            ? "Quick Play room"
+            : preview.status === "waiting"
+              ? "Waiting for players"
+              : preview.status === "completed"
+                ? "Song finished"
+                : "Game in progress"}
         </h1>
-        <p className="mt-2 font-mono text-xl tracking-widest text-relay-text">
-          {code}
-        </p>
-        <p className="mt-4 text-sm text-relay-text/70">
-          {preview.player_count} / {preview.max_players} players ·{" "}
-          {preview.status === "waiting"
-            ? "Waiting to start"
-            : preview.status === "completed"
-              ? "Song finished"
-              : "In progress"}
-        </p>
+        {!preview.is_quick_play && (
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-relay-text/40">
+            {code}
+          </p>
+        )}
+        {preview.is_quick_play && (
+          <>
+            <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-relay-text/45">
+              {code}
+            </p>
+            <p className="mt-4 text-sm text-relay-text/70">
+              {preview.player_count} / {preview.max_players} players ·{" "}
+              {preview.status === "waiting"
+                ? "Waiting to start"
+                : preview.status === "completed"
+                  ? "Song finished"
+                  : "In progress"}
+            </p>
+          </>
+        )}
         {preview.status === "completed" ? (
           <p className="mt-6 text-relay-text/70">
             This game has ended. The room is locked.
@@ -954,6 +943,11 @@ export function RoomView({ code }: { code: string }) {
           <p className="mt-6 text-relay-urgency">This room is full.</p>
         ) : (
           <>
+            {!preview.is_quick_play && (
+              <p className="mt-4 text-sm text-relay-text/70">
+                Enter your name to join.
+              </p>
+            )}
             <div className="mt-5">
               <label className="mb-1.5 block text-xs font-medium text-relay-text/55">
                 Your name
@@ -978,15 +972,6 @@ export function RoomView({ code }: { code: string }) {
             >
               {joinBusy ? "Joining…" : "Join Game →"}
             </button>
-            {canWebShare() && (
-              <button
-                type="button"
-                onClick={() => void shareInviteLink()}
-                className="mt-2 w-full rounded-xl border border-relay-text/15 py-2.5 text-sm font-medium text-relay-text/75 hover:bg-relay-bg"
-              >
-                Share invite…
-              </button>
-            )}
           </>
         )}
         {error && (
@@ -1060,7 +1045,7 @@ export function RoomView({ code }: { code: string }) {
           >
             ← Home
           </Link>
-          <span className="font-mono text-sm tracking-widest text-relay-text/60">
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-relay-text/45">
             {code}
           </span>
           <div className="relative flex items-center gap-3">
@@ -1365,98 +1350,66 @@ export function RoomView({ code }: { code: string }) {
       <header className="mt-6 rounded-2xl border border-relay-text/8 bg-relay-card p-5 shadow-sm shadow-black/25">
         {room.status === "waiting" ? (
           <div className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-widest text-relay-text/45">
-              {room.is_quick_play ? "Quick Play" : "Private room"}
-            </p>
-            <p className="mt-1 text-2xl font-black text-relay-text">
-              {members.length} / {room.max_players} players
-            </p>
-            {!room.is_quick_play && (
-              <p className="mt-2 font-mono text-lg tracking-widest text-relay-text/80">
-                {room.code}
-              </p>
-            )}
-            {members.length < 2 ? (
-              <p className="mt-3 text-sm text-relay-text/50">
-                {room.is_quick_play ? (
-                  <>
-                    Waiting for more players…{" "}
-                    <span className="text-relay-text/40">
-                      Send friends this page&apos;s link from the address bar.
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    Waiting for a second player…{" "}
-                    <span className="text-relay-text/40">
-                      Share the invite below. Others can join from the link anytime.
-                    </span>
-                  </>
-                )}
-              </p>
-            ) : room.is_quick_play ? null : autoStartSecondsLeft !== null && autoStartSecondsLeft > 0 ? (
-              <div className="mt-3">
-                <p className="text-xs font-medium uppercase tracking-widest text-relay-text/40">
-                  Starting in
+            {room.is_quick_play ? (
+              <>
+                <p className="text-sm font-semibold uppercase tracking-widest text-relay-text/45">
+                  Quick Play
                 </p>
-                <p className="mt-0.5 text-5xl font-black tabular-nums text-relay-live">
-                  {autoStartSecondsLeft}
+                <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.2em] text-relay-text/40">
+                  {room.code}
                 </p>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-relay-live">Starting…</p>
-            )}
-            {!room.is_quick_play && room.status === "waiting" && (
-              <div className="mt-6 space-y-3 border-t border-relay-text/10 pt-5 text-left">
-                <div>
-                  <p className="mb-1 text-xs font-medium text-relay-text/45">
-                    Invite link
+                <p className="mt-2 text-2xl font-black text-relay-text">
+                  {members.length} / {room.max_players} players
+                </p>
+                {members.length < 2 ? (
+                  <p className="mt-3 text-sm text-relay-text/55">
+                    Waiting for more players — send friends this page&apos;s link from
+                    the address bar.
                   </p>
-                  <input
-                    readOnly
-                    value={inviteUrl}
-                    onFocus={(e) => e.target.select()}
-                    className="w-full cursor-text rounded-lg border border-relay-text/10 bg-relay-bg px-3 py-2 font-mono text-xs text-relay-text/90 outline-none ring-relay-live/30 focus:ring-2"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => { sounds.click(); void copyInvite(); }}
-                    className="flex-1 rounded-lg border border-relay-text/10 bg-relay-bg py-2.5 text-sm font-medium text-relay-text/85 hover:bg-relay-active min-[380px]:min-w-[8rem]"
-                  >
-                    {copied ? "Link copied ✓" : "Copy link"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { sounds.click(); void copyRoomCodeOnly(); }}
-                    className="flex-1 rounded-lg border border-relay-text/10 bg-relay-bg py-2.5 text-sm font-medium text-relay-text/85 hover:bg-relay-active min-[380px]:min-w-[8rem]"
-                  >
-                    {codeCopied ? "Code copied ✓" : "Copy code"}
-                  </button>
-                  {canWebShare() && (
-                    <button
-                      type="button"
-                      onClick={() => void shareInviteLink()}
-                      className="flex-1 rounded-lg bg-relay-live py-2.5 text-sm font-semibold text-white hover:opacity-90 min-[380px]:min-w-[8rem]"
-                    >
-                      Share…
-                    </button>
-                  )}
-                </div>
-                <p className="text-center text-xs leading-relaxed text-relay-text/45">
-                  Each person joins from their own browser (or incognito) so everyone
-                  gets their own turn.
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-semibold tracking-tight text-relay-text">
+                  Waiting for players
                 </p>
-              </div>
+                <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.2em] text-relay-text/40">
+                  {room.code}
+                </p>
+                {members.length < 2
+                  ? null
+                  : autoStartSecondsLeft !== null && autoStartSecondsLeft > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-base text-relay-text/85">
+                      {members.length}{" "}
+                      {members.length === 1 ? "player" : "players"} joined – tap ready
+                      to start
+                    </p>
+                    <div className="mt-6">
+                      <p className="text-xs font-medium uppercase tracking-widest text-relay-text/40">
+                        Starting in
+                      </p>
+                      <p className="mt-1 text-5xl font-black tabular-nums text-relay-live">
+                        {autoStartSecondsLeft}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <p className="text-base text-relay-text/85">
+                      {members.length}{" "}
+                      {members.length === 1 ? "player" : "players"} joined – tap ready
+                      to start
+                    </p>
+                    <p className="mt-3 text-sm text-relay-live">Starting…</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
           <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-relay-text/45">
-              Room code
-            </p>
-            <p className="mt-1 font-mono text-2xl tracking-widest text-relay-text">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-relay-text/40">
               {room.code}
             </p>
           </div>
@@ -1518,6 +1471,26 @@ export function RoomView({ code }: { code: string }) {
             );
           })}
         </ul>
+
+        {room.status === "waiting" &&
+          !room.is_quick_play &&
+          members.length < 2 && (
+            <div className="mt-5 space-y-3 text-center">
+              <p className="text-base text-relay-text/85">
+                Send this link to a friend
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.click();
+                  void copyInvite();
+                }}
+                className="w-full rounded-xl bg-relay-live py-3 font-semibold text-white transition hover:opacity-90"
+              >
+                {copied ? "Invite link copied ✓" : "Copy Invite Link"}
+              </button>
+            </div>
+          )}
 
         {room.status === "waiting" && (
           <div className="mt-5 space-y-3">
