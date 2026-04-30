@@ -18,3 +18,6 @@ export const TURN_EXPIRED_PLACEHOLDER = "[timeout]";
  * (matches `021_bot_turn_min_dwell.sql`: `extract(epoch ...) < 2.5`).
  */
 export const BOT_TURN_MIN_DWELL_MS = 2500;
+
+/** Private waiting lobby: countdown length after everyone taps ready (`relay_room_tick` + UI). */
+export const PRIVATE_LOBBY_COUNTDOWN_SECONDS = 10;

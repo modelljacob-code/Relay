@@ -70,16 +70,7 @@ begin
     perform public.relay_trim_one_bot(rid);
   end if;
 
-  select count(*)::int into cnt from public.room_members where room_id = rid;
-  if cnt >= 2 and not qp then
-    update public.rooms
-    set auto_start_at = coalesce(
-      auto_start_at,
-      now() + interval '12 seconds'
-    )
-    where id = rid
-      and status = 'waiting';
-  end if;
+  -- Private lobby: countdown is armed only after every human taps ready (`relay_room_tick`).
 
   return rid;
 end;

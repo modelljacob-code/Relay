@@ -5,6 +5,7 @@ import { runItBack, submitLine, updateDisplayName } from "@/app/actions/rooms";
 import { totalSongWordCount } from "@/lib/handoff";
 import {
   MAX_CHARS_PER_TURN,
+  PRIVATE_LOBBY_COUNTDOWN_SECONDS,
   TARGET_SONG_WORDS,
   TURN_EXPIRED_PLACEHOLDER,
   TURN_TIMEOUT_SECONDS,
@@ -496,7 +497,11 @@ export function RoomView({ code }: { code: string }) {
     }
     const target = new Date(room.auto_start_at).getTime();
     const tick = () => {
-      const secs = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+      const rawSecs = Math.ceil((target - Date.now()) / 1000);
+      const secs = Math.max(
+        0,
+        Math.min(PRIVATE_LOBBY_COUNTDOWN_SECONDS, rawSecs)
+      );
       setAutoStartSecondsLeft(secs);
       if (secs <= 0) {
         void supabase

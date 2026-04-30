@@ -335,22 +335,42 @@ begin
     from public.room_members
     where room_id = p_room_id;
 
-    if human_cnt = 0 then
-      all_ready := false;
+    if coalesce(r.is_quick_play, false) then
+      -- Quick Play: two-thirds of humans ready → start immediately (no timer).
+      if human_cnt = 0 then
+        all_ready := false;
+      else
+        humans_needed := greatest(1, ceil((human_cnt * 2.0) / 3.0)::int);
+        all_ready := ready_h >= humans_needed;
+      end if;
+
+      if all_ready and t_cnt >= 2 then
+        return public.relay_try_start_room(p_room_id, true);
+      end if;
     else
-      humans_needed := greatest(1, ceil((human_cnt * 2.0) / 3.0)::int);
-      all_ready := ready_h >= humans_needed;
-    end if;
+      -- Private room: only start after fixed 10s countdown, armed when *every* human is ready.
+      if human_cnt < 2 or ready_h < human_cnt or t_cnt < 2 then
+        update public.rooms
+        set auto_start_at = null
+        where id = p_room_id
+          and status = 'waiting'
+          and auto_start_at is not null;
+      elsif r.auto_start_at is null then
+        update public.rooms
+        set auto_start_at = now() + interval '10 seconds'
+        where id = p_room_id
+          and status = 'waiting';
+      end if;
 
-    if all_ready and t_cnt >= 2 then
-      return public.relay_try_start_room(p_room_id, true);
-    end if;
+      select auto_start_at into r.auto_start_at from public.rooms where id = p_room_id;
 
-    if coalesce(r.is_quick_play, false) = false
-       and r.auto_start_at is not null
-       and r.auto_start_at <= now()
-       and t_cnt >= 2 then
-      return public.relay_try_start_room(p_room_id, false);
+      if r.auto_start_at is not null
+         and r.auto_start_at <= now()
+         and t_cnt >= 2
+         and human_cnt >= 2
+         and ready_h = human_cnt then
+        return public.relay_try_start_room(p_room_id, false);
+      end if;
     end if;
 
     return false;

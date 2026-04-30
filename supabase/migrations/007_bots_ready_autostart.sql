@@ -314,6 +314,15 @@ begin
   where room_id = p_room_id
     and user_id = auth.uid()
     and is_bot = false;
+
+  -- Private waiting lobby: unready resets the "everyone ready" start countdown immediately.
+  if not p_ready then
+    update public.rooms r
+    set auto_start_at = null
+    where r.id = p_room_id
+      and r.status = 'waiting'
+      and coalesce(r.is_quick_play, false) = false;
+  end if;
 end;
 $fn$;
 
